@@ -1,6 +1,5 @@
-https://adventofcode.com/2025/day/1
+--- [Day 1](https://adventofcode.com/2025/day/1): Secret Entrance ---
 
---- Day 1: Secret Entrance ---
 The Elves have good news and bad news.
 
 The good news is that they've discovered project management! This has given them the tools they need to prevent their usual Christmas emergency. For example, they now know that the North Pole decorations need to be finished soon so that other critical tasks can start on time.
