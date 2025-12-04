@@ -12,7 +12,7 @@ pub fn main() !void {
 }
 
 const Results = struct { timesDialEqualsZero: u32, totalTimesDialCrossedZero: u32, instructionsThatCausedDialToCrossZeroOneOrMoreTimes: u32, operationsApplied: u32, dial: u32 };
-const RotationMod100 = struct { newDial: u32, didCrossOrEndOnZero: bool, timesCrossedZero: u32 };
+const RotationMod100 = struct { newDial: u32, timesCrossedZero: u32 };
 
 fn inputDialOperations(initialDial: u32, buffer: []const u8) !Results {
     var dial = initialDial;
@@ -62,17 +62,8 @@ fn addMod100(a: u32, b: u32) RotationMod100 {
     const addResult = a + b;
     const newDial: u32 = @rem(addResult, 100);
     const timesCrossedZero: u32 = if (addResult == 0) 1 else addResult / 100;
-    const didCrossZero = timesCrossedZero > 0;
 
-    std.debug.print("\n A(dial):{any}, B(rotation):{any}, EndDial:{any}, Crossed:{any}, a+b:{any}\n", .{
-        a,
-        b,
-        newDial,
-        timesCrossedZero,
-        addResult,
-    });
-
-    return .{ .newDial = newDial, .timesCrossedZero = timesCrossedZero, .didCrossOrEndOnZero = didCrossZero };
+    return .{ .newDial = newDial, .timesCrossedZero = timesCrossedZero };
 }
 
 fn subtractMod100(a: u32, b: u32) RotationMod100 {
@@ -94,15 +85,12 @@ fn subtractMod100(a: u32, b: u32) RotationMod100 {
         timesCrossedZero -= 1;
     }
 
-    const didCrossZero = (timesCrossedZero > 0);
-    std.debug.print("\n A(dial):{any}, B(rotation):{any}, b%100(rotation):{any}, EndDial:{any}, Crossed:{any}, \n", .{ a, b, bDividedBy100Remainder, newDial, timesCrossedZero });
-
-    return .{ .newDial = newDial, .timesCrossedZero = timesCrossedZero, .didCrossOrEndOnZero = didCrossZero };
+    return .{ .newDial = newDial, .timesCrossedZero = timesCrossedZero };
 }
 
 fn noop(a: u32, b: u32) RotationMod100 {
     _ = b;
-    return .{ .newDial = a, .timesCrossedZero = 0, .didCrossOrEndOnZero = false };
+    return .{ .newDial = a, .timesCrossedZero = 0 };
 }
 
 test "subtraction from 0 should not register crossing dial" {
