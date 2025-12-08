@@ -1,62 +1,143 @@
-//! By convention, root.zig is the root source file when making a library.
 const std = @import("std");
 
-const IdRange = struct { start: u32, end: u32 };
-const SumOfInvalidIdsInRange = struct { range: IdRange, sumOfInvalid: u32 };
-const RangeIndexes = struct { startByteIndex: u32, separatorByteIndex: u32, endByteIndex: u32 };
+const IdRange = struct { start: u64, end: u64 };
 
-pub fn calculateSumOfInvalidIdsInRanges(allocator: std.mem.Allocator, buffer: []const u8) !std.ArrayList(SumOfInvalidIdsInRange) {
-    const rangeIndexes = try getRangeIndexes(allocator, buffer);
-    const idRanges = try getIdRanges(allocator, rangeIndexes);
+const IdGroup = struct {
+    const Self = @This();
+    examinedRange: IdRange,
+    invalidIds: []u64,
+    pub fn sumOfInvalid(self: Self) u128 {
+        var sum: u128 = 0;
+        for (self.invalidIds) |id| {
+            sum += id;
+        }
 
-    _ = idRanges;
-    return .empty;
-}
+        return sum;
+    }
+};
 
-fn getIdRanges(allocator: std.mem.Allocator, rangeIndexes: std.ArrayList(RangeIndexes)) !std.ArrayList(RangeIndexes) {
-    var idRanges: std.ArrayList(IdRange) = .empty;
+const Id = struct {
+  stringRepresentation: []u8,
+  value: u64
+};
 
-    for (rangeIndexes.items) |rangeIndex| {
-        const idRange = try getIdRange(rangeIndex);
-        try idRanges.append(allocator, idRange);
+const IdRangeBufferReadResult = struct {
+    const Self = @This();
+    _allocator: std.mem.Allocator = undefined,
+
+    lastReadIndex: u32 = 0,
+    firstIdFromBuffer: std.ArrayList(u8),
+    finalIdFromBuffer: std.ArrayList(u8),
+
+    fn init(allocator: std.mem.Allocator, initialIndex: u32) IdRangeBufferReadResult {
+        return .{ ._allocator = allocator, .lastReadIndex = initialIndex, .firstIdFromBuffer = .empty, .finalIdFromBuffer = .empty };
     }
 
-    return .empty;
+    fn appendToFirstId(self: *Self, char: u8) !void {
+        try self.firstIdFromBuffer.append(self._allocator, char);
+    }
+
+    fn appendToFinalId(self: *Self, char: u8) !void {
+        try self.finalIdFromBuffer.append(self._allocator, char);
+    }
+};
+
+pub fn getInvalidIdsFromBuffer(allocator: std.mem.Allocator, buffer: []const u8) !std.ArrayList(IdGroup) {
+    const idRanges = try getRanges(allocator, buffer);
+    return try getInvalidIdsForRanges(allocator, idRanges);
 }
 
-fn getIdRange(rangeIndexes: RangeIndexes) !IdRange {
-    _ = rangeIndexes;
-    return .{ .start = 0, .end = 0 };
+fn getInvalidIdsForRanges(allocator: std.mem.Allocator, idRanges: []IdRange) !std.ArrayList(IdGroup) {
+    var allIdGroups: std.ArrayList(IdGroup) = .empty;
+
+    for (idRanges) |idRange| {
+        const invalidIds = try getInvalidIdsForRange(allocator, idRange);
+        const idGroup: IdGroup = .{ .examinedRange = idRange, .invalidIds = invalidIds.items };
+        try allIdGroups.append(allocator, idGroup);
+    }
+    return allIdGroups;
 }
 
-fn getRangeIndexes(allocator: std.mem.Allocator, buffer: []const u8) !std.ArrayList(RangeIndexes) {
-    var idRanges: std.ArrayList(RangeIndexes) = .empty;
-    var index: u32 = 1;
+fn getInvalidIdsForRange(allocator: std.mem.Allocator, idRange: IdRange) ![]u64 {
+    var invalidIds: std.ArrayList(u64) = .empty;
+    for (idRange.start..idRange.end) |id: u64| {
+        if (!isValid(id)) {
+            invalidIds.append(allocator, id);
+        }
+    }
 
-    var indexOfStartCharacter: u32 = 0;
-    var indexOfSeparator: u32 = 0;
+    if (!isValid(idRange.end)) {
+        invalidIds.append(allocator, idRange.end);
+    }
+
+    return invalidIds.items;
+}
+
+fn getNextRangeFromBuffer(allocator: std.mem.Allocator, index: u32, buffer: []const u8) !IdRangeBufferReadResult {
+    var result = IdRangeBufferReadResult.init(allocator, index);
+
+    var haveEncounteredSeprator: bool = false;
+
+    while (result.lastReadIndex < buffer.len) {
+        // Only in the final case should we ever get to the buffer.len, however we avoid risking out of bounds.
+
+        if (buffer[result.lastReadIndex] == ',') {
+            return result;
+        }
+
+        if (buffer[result.lastReadIndex] == '-') {
+            haveEncounteredSeprator = true;
+        } else if (haveEncounteredSeprator) {
+            try result.appendToFinalId(buffer[result.lastReadIndex]);
+        } else {
+            try result.appendToFirstId(buffer[result.lastReadIndex]);
+        }
+
+        result.lastReadIndex += 1;
+    }
+
+    return result;
+}
+
+fn printReadResult(result: IdRangeBufferReadResult) !void {
+    var fromNumber: std.ArrayList(u8) = .empty;
+    var toNumber: std.ArrayList(u8) = .empty;
+
+    for (result.firstIdFromBuffer.items) |char| {
+        try fromNumber.append(result._allocator, char - 48);
+    }
+
+    for (result.finalIdFromBuffer.items) |char| {
+        try toNumber.append(result._allocator, char - 48);
+    }
+
+    std.debug.print("read status: last read index {any} from {any} to {any} \n", .{ result.lastReadIndex, fromNumber, toNumber });
+}
+
+fn parseRange(bufferReadResult: IdRangeBufferReadResult) !IdRange {
+    const fromId = try std.fmt.parseUnsigned(u64, bufferReadResult.firstIdFromBuffer.items, 10);
+    const toId = try std.fmt.parseUnsigned(u64, bufferReadResult.finalIdFromBuffer.items, 10);
+    return .{ .start = fromId, .end = toId };
+}
+
+fn getRanges(allocator: std.mem.Allocator, buffer: []const u8) ![]IdRange {
+    var idRanges: std.ArrayList(IdRange) = .empty;
+    var index: u32 = 0;
 
     while (index < buffer.len) {
-        if (index == buffer.len - 1) {
-            // just in case - but should be unreachable
-            break;
-        }
+        const nextRangeFromBuffer = try getNextRangeFromBuffer(allocator, index, buffer);
+        try printReadResult(nextRangeFromBuffer);
+        const nextIdRange = try parseRange(nextRangeFromBuffer);
+        try idRanges.append(allocator, nextIdRange);
 
-        if (buffer[index] == ',') {
-            try idRanges.append(allocator, .{ .startByteIndex = indexOfStartCharacter, .separatorByteIndex = indexOfSeparator, .endByteIndex = index - 1 });
-            indexOfStartCharacter = buffer[index + 1];
-        }
-
-        if (buffer[index] == '-') {
-            indexOfSeparator = index;
-        }
-        index += 1;
+        index = nextRangeFromBuffer.lastReadIndex + 1;
     }
 
-    return idRanges;
+    return idRanges.items;
 }
 
-fn isValid(stringRepresentationOfNumber: []const u8) bool {
+// fn isValid(stringRepresentationOfNumber: []const u8) bool {
+fn isValid(stringRepresentationOfNumber: []u8) bool {
     return !isRepeatedSequenceOfDigits(stringRepresentationOfNumber);
 }
 
