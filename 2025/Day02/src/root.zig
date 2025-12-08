@@ -1,7 +1,62 @@
 //! By convention, root.zig is the root source file when making a library.
 const std = @import("std");
 
-pub fn isValid(stringRepresentationOfNumber: []const u8) bool {
+const IdRange = struct { start: u32, end: u32 };
+const SumOfInvalidIdsInRange = struct { range: IdRange, sumOfInvalid: u32 };
+const RangeIndexes = struct { startByteIndex: u32, separatorByteIndex: u32, endByteIndex: u32 };
+
+pub fn calculateSumOfInvalidIdsInRanges(allocator: std.mem.Allocator, buffer: []const u8) !std.ArrayList(SumOfInvalidIdsInRange) {
+    const rangeIndexes = try getRangeIndexes(allocator, buffer);
+    const idRanges = try getIdRanges(allocator, rangeIndexes);
+
+    _ = idRanges;
+    return .empty;
+}
+
+fn getIdRanges(allocator: std.mem.Allocator, rangeIndexes: std.ArrayList(RangeIndexes)) !std.ArrayList(RangeIndexes) {
+    var idRanges: std.ArrayList(IdRange) = .empty;
+
+    for (rangeIndexes.items) |rangeIndex| {
+        const idRange = try getIdRange(rangeIndex);
+        try idRanges.append(allocator, idRange);
+    }
+
+    return .empty;
+}
+
+fn getIdRange(rangeIndexes: RangeIndexes) !IdRange {
+    _ = rangeIndexes;
+    return .{ .start = 0, .end = 0 };
+}
+
+fn getRangeIndexes(allocator: std.mem.Allocator, buffer: []const u8) !std.ArrayList(RangeIndexes) {
+    var idRanges: std.ArrayList(RangeIndexes) = .empty;
+    var index: u32 = 1;
+
+    var indexOfStartCharacter: u32 = 0;
+    var indexOfSeparator: u32 = 0;
+
+    while (index < buffer.len) {
+        if (index == buffer.len - 1) {
+            // just in case - but should be unreachable
+            break;
+        }
+
+        if (buffer[index] == ',') {
+            try idRanges.append(allocator, .{ .startByteIndex = indexOfStartCharacter, .separatorByteIndex = indexOfSeparator, .endByteIndex = index - 1 });
+            indexOfStartCharacter = buffer[index + 1];
+        }
+
+        if (buffer[index] == '-') {
+            indexOfSeparator = index;
+        }
+        index += 1;
+    }
+
+    return idRanges;
+}
+
+fn isValid(stringRepresentationOfNumber: []const u8) bool {
     return !isRepeatedSequenceOfDigits(stringRepresentationOfNumber);
 }
 
