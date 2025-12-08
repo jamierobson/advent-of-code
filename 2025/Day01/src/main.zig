@@ -1,3 +1,5 @@
+const builtin = @import("builtin"); // line endings on windows vs linux
+
 const std = @import("std");
 // https://ziglang.org/documentation/master/#embedFile
 // This function returns a compile time constant pointer to null-terminated,
@@ -6,7 +8,7 @@ const std = @import("std");
 // This is equivalent to a string literal with the file contents.
 
 pub fn main() !void {
-    const instructionsFile: *const [17053:0]u8 = @embedFile("instructions.txt");
+    const instructionsFile = @embedFile("instructions.txt");
     const result = try inputDialOperations(50, instructionsFile);
     std.debug.print("Times dial ended up at 0: {}. Times dial crossed 0: {}. Instructions that caused us to cross or land on 0: {} Applied {} instructions \n", .{ result.timesDialEqualsZero, result.totalTimesDialCrossedZero, result.instructionsThatCausedDialToCrossZeroOneOrMoreTimes, result.operationsApplied });
 }
@@ -27,7 +29,10 @@ fn inputDialOperations(initialDial: u32, buffer: []const u8) !Results {
     while (index < buffer.len) {
         if (buffer[index] == '\n' or index == buffer.len - 1) {
             const operation = getOperationFromCharacter(buffer[operationIndex]);
-            const rotationSlice = buffer[operationIndex + 1 .. index];
+            // const endOfSlice: u32 = if (builtin.os.tag == .windows) index - 1 else index; // todo: Why didn't this work?
+            const endOfSlice: u32 = if (buffer[index - 1] == '\r') index - 1 else index; // windows!!!
+
+            const rotationSlice = buffer[operationIndex + 1 .. endOfSlice];
             const rotation = try std.fmt.parseInt(u32, rotationSlice, 10);
             const rotationMod100 = operation(dial, rotation);
             dial = rotationMod100.newDial;
@@ -114,6 +119,18 @@ test "Part 1 snapshot test" {
     const expectedTimesDialEqualsZero: u32 = 3;
     const expectedDial: u32 = 32;
     const input: []const u8 = "L68\nL30\nR48\nL5\nR60\nL55\nL1\nL99\nR14\nL82\n";
+
+    const result = try inputDialOperations(initialDial, input);
+
+    try std.testing.expectEqual(expectedDial, result.dial);
+    try std.testing.expectEqual(expectedTimesDialEqualsZero, result.timesDialEqualsZero);
+}
+
+test "Part 1 snapshot test - windows" {
+    const initialDial: u32 = 50;
+    const expectedTimesDialEqualsZero: u32 = 3;
+    const expectedDial: u32 = 32;
+    const input: []const u8 = "L68\r\nL30\r\nR48\r\nL5\r\nR60\r\nL55\r\nL1\r\nL99\r\nR14\r\nL82\r\n";
 
     const result = try inputDialOperations(initialDial, input);
 
