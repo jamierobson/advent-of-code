@@ -10,7 +10,7 @@ pub fn main() !void {
     defer arenaInstance.deinit();
     const arenaAllocator = arenaInstance.allocator();
 
-    const result = try module.getInvalidIdsFromBuffer(arenaAllocator, idFile);
+    const result = try module.getValidityAssessedIdRangesFromBuffer(arenaAllocator, idFile);
     const totalSum = module.getSumOfInvalidInRangePartOne(result.items);
     std.debug.print("Total range: {any}", .{totalSum});
 }

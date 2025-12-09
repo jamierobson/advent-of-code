@@ -45,7 +45,7 @@ const IdRangeBufferReadResult = struct {
     }
 };
 
-pub fn getInvalidIdsFromBuffer(allocator: std.mem.Allocator, buffer: []const u8) !std.ArrayList(IdGroup) {
+pub fn getValidityAssessedIdRangesFromBuffer(allocator: std.mem.Allocator, buffer: []const u8) !std.ArrayList(IdGroup) {
     const idRanges = try getRanges(allocator, buffer);
     return try getInvalidIdsForRanges(allocator, idRanges);
 }
@@ -184,16 +184,6 @@ fn isRepeatedSequenceOfDigits(stringRepresentationOfNumber: []const u8) bool {
     return true;
 }
 
-test "odd lengths cannot be repeated strings" {
-    const expected = false;
-
-    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("1"));
-    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("111"));
-    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("11111"));
-    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("1111111"));
-    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("111111111"));
-}
-
 test "Part 1 snapshot test" {
     const expected: u128 = 1227775554;
     const input: []const u8 = "1-22,95-115,998-1012,1188511880-1188511890,222220-222224,1698522-1698528,446443-446449,38593856-38593862";
@@ -202,10 +192,34 @@ test "Part 1 snapshot test" {
     defer arenaInstance.deinit();
     const arenaAllocator = arenaInstance.allocator();
 
-    const groups = try getInvalidIdsFromBuffer(arenaAllocator, input);
+    const groups = try getValidityAssessedIdRangesFromBuffer(arenaAllocator, input);
     const result = getSumOfInvalidInRangePartOne(groups.items);
 
     try std.testing.expectEqual(expected, result);
+}
+
+test "Part 2 snapshot test" {
+    const expected: u128 = 4174379265;
+    const input: []const u8 = "1-22,95-115,998-1012,1188511880-1188511890,222220-222224,1698522-1698528,446443-446449,38593856-38593862,565653-565659,824824821-824824827,2121212118-2121212124";
+
+    var arenaInstance: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arenaInstance.deinit();
+    const arenaAllocator = arenaInstance.allocator();
+
+    const groups = try getValidityAssessedIdRangesFromBuffer(arenaAllocator, input);
+    const result = getSumOfInvalidInRangePartTwo(groups.items);
+
+    try std.testing.expectEqual(expected, result);
+}
+
+test "odd lengths cannot be repeated strings" {
+    const expected = false;
+
+    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("1"));
+    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("111"));
+    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("11111"));
+    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("1111111"));
+    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("111111111"));
 }
 
 test "sample input from prompty 95-115 - valid" {
