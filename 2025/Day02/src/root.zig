@@ -1,104 +1,43 @@
 const std = @import("std");
+const types = @import("types.zig");
+const part1 = @import("Part1.zig");
+const part2 = @import("Part1.zig");
 
-const IdRange = struct { start: u64, end: u64 };
-
-const IdGroup = struct {
-    const Self = @This();
-    examinedRange: IdRange,
-    invalidIdsPartOne: []u64,
-    invalidIdsPartTwo: []u64,
-    pub fn sumOfInvalidPartOne(self: Self) u128 {
-        return sumOfInvalid(self.invalidIdsPartOne);
-    }
-    pub fn sumOfInvalidPartTwo(self: Self) u128 {
-        return sumOfInvalid(self.invalidIdsPartTwo);
-    }
-
-    fn sumOfInvalid(numbers: []u64) u128 {
-        var sum: u128 = 0;
-        for (numbers) |i| {
-            sum += i;
-        }
-
-        return sum;
-    }
-};
-
-const IdRangeBufferReadResult = struct {
-    const Self = @This();
-    _allocator: std.mem.Allocator = undefined,
-
-    lastReadIndex: u32 = 0,
-    firstIdFromBuffer: std.ArrayList(u8),
-    finalIdFromBuffer: std.ArrayList(u8),
-
-    fn init(allocator: std.mem.Allocator, initialIndex: u32) IdRangeBufferReadResult {
-        return .{ ._allocator = allocator, .lastReadIndex = initialIndex, .firstIdFromBuffer = .empty, .finalIdFromBuffer = .empty };
-    }
-
-    fn appendToFirstId(self: *Self, char: u8) !void {
-        try self.firstIdFromBuffer.append(self._allocator, char);
-    }
-
-    fn appendToFinalId(self: *Self, char: u8) !void {
-        try self.finalIdFromBuffer.append(self._allocator, char);
-    }
-};
-
-pub fn getValidityAssessedIdRangesFromBuffer(allocator: std.mem.Allocator, buffer: []const u8) !std.ArrayList(IdGroup) {
+pub fn getValidityAssessedIdRangesFromBuffer(allocator: std.mem.Allocator, buffer: []const u8) !std.ArrayList(types.IdGroup) {
     const idRanges = try getRanges(allocator, buffer);
     return try getInvalidIdsForRanges(allocator, idRanges);
 }
 
-pub fn getSumOfInvalidInRangePartOne(idRanges: []IdGroup) u128 {
-    var totalSum: u128 = 0;
-    for (idRanges) |range| {
-        totalSum += range.sumOfInvalidPartOne();
-    }
-
-    return totalSum;
-}
-
-pub fn getSumOfInvalidInRangePartTwo(idRanges: []IdGroup) u128 {
-    var totalSum: u128 = 0;
-    for (idRanges) |range| {
-        totalSum += range.sumOfInvalidPartOne();
-    }
-
-    return totalSum;
-}
-
-fn getInvalidIdsForRanges(allocator: std.mem.Allocator, idRanges: []IdRange) !std.ArrayList(IdGroup) {
-    var allIdGroups: std.ArrayList(IdGroup) = .empty;
+fn getInvalidIdsForRanges(allocator: std.mem.Allocator, idRanges: []types.IdRange) !std.ArrayList(types.IdGroup) {
+    var allIdGroups: std.ArrayList(types.IdGroup) = .empty;
 
     for (idRanges) |idRange| {
-        const invalidIds = try getInvalidIdsForRange(allocator, idRange);
-        const idGroup: IdGroup = .{ .examinedRange = idRange, .invalidIdsPartOne = invalidIds, .invalidIdsPartTwo = undefined };
+        const idGroup = try setInvalidIds(allocator, idRange);
         try allIdGroups.append(allocator, idGroup);
     }
     return allIdGroups;
 }
 
-fn getInvalidIdsForRange(allocator: std.mem.Allocator, idRange: IdRange) ![]u64 {
-    var invalidIds: std.ArrayList(u64) = .empty;
-    for (idRange.start..idRange.end) |id| {
+fn setInvalidIds(allocator: std.mem.Allocator, idRange: types.IdRange) !types.IdGroup {
+    var idGroup: types.IdGroup = .init(allocator, idRange);
+
+    for (idGroup.range.start..idGroup.range.end) |id| {
         const stringRepresentation: []u8 = try std.fmt.allocPrint(allocator, "{d}", .{id});
-        if (isRepeatedSequenceOfDigits(stringRepresentation)) {
-            try invalidIds.append(allocator, id);
+        if (part1.isRepeatedSequenceOfDigits(stringRepresentation)) {
+            try idGroup.appendInvalidPartOne(id);
         }
     }
-
     // The range specified above is inclusive lower, exclusive upper.
-    const stringRepresentation: []u8 = try std.fmt.allocPrint(allocator, "{d}", .{idRange.end});
-    if (isRepeatedSequenceOfDigits(stringRepresentation)) {
-        try invalidIds.append(allocator, idRange.end);
+    const stringRepresentation: []u8 = try std.fmt.allocPrint(allocator, "{d}", .{idGroup.range.end});
+    if (part1.isRepeatedSequenceOfDigits(stringRepresentation)) {
+        try idGroup.appendInvalidPartOne(idGroup.range.end);
     }
 
-    return invalidIds.items;
+    return idGroup;
 }
 
-fn getNextRangeFromBuffer(allocator: std.mem.Allocator, index: u32, buffer: []const u8) !IdRangeBufferReadResult {
-    var result = IdRangeBufferReadResult.init(allocator, index);
+fn getNextRangeFromBuffer(allocator: std.mem.Allocator, index: u32, buffer: []const u8) !types.IdRangeBufferReadResult {
+    var result = types.IdRangeBufferReadResult.init(allocator, index);
 
     var haveEncounteredSeprator: bool = false;
 
@@ -129,7 +68,7 @@ fn printParseResult(allocator: std.mem.Allocator, id: u64, stringRepresenration:
     std.debug.print("u64: {any}, []u8: {any} \n", .{ id, displayable });
 }
 
-fn printReadResult(result: IdRangeBufferReadResult) !void {
+fn printReadResult(result: types.IdRangeBufferReadResult) !void {
     const fromNumber: std.ArrayList(u8) = try getScaledDisplayNumericalRepresentation(result._allocator, result.firstIdFromBuffer.items);
     const toNumber: std.ArrayList(u8) = try getScaledDisplayNumericalRepresentation(result._allocator, result.finalIdFromBuffer.items);
 
@@ -146,14 +85,14 @@ fn getScaledDisplayNumericalRepresentation(allocator: std.mem.Allocator, bytes: 
     return displayRepresentation;
 }
 
-fn parseRange(bufferReadResult: IdRangeBufferReadResult) !IdRange {
+fn parseRange(bufferReadResult: types.IdRangeBufferReadResult) !types.IdRange {
     const fromId = try std.fmt.parseUnsigned(u64, bufferReadResult.firstIdFromBuffer.items, 10);
     const toId = try std.fmt.parseUnsigned(u64, bufferReadResult.finalIdFromBuffer.items, 10);
     return .{ .start = fromId, .end = toId };
 }
 
-fn getRanges(allocator: std.mem.Allocator, buffer: []const u8) ![]IdRange {
-    var idRanges: std.ArrayList(IdRange) = .empty;
+fn getRanges(allocator: std.mem.Allocator, buffer: []const u8) ![]types.IdRange {
+    var idRanges: std.ArrayList(types.IdRange) = .empty;
     var index: u32 = 0;
 
     while (index < buffer.len) {
@@ -165,87 +104,4 @@ fn getRanges(allocator: std.mem.Allocator, buffer: []const u8) ![]IdRange {
     }
 
     return idRanges.items;
-}
-
-fn isRepeatedSequenceOfDigits(stringRepresentationOfNumber: []const u8) bool {
-    const s: u128 = @rem(stringRepresentationOfNumber.len, 2);
-    if (s != 0) return false;
-
-    var i: usize = 0;
-    var j: usize = stringRepresentationOfNumber.len / 2;
-
-    while (j < stringRepresentationOfNumber.len) {
-        if (stringRepresentationOfNumber[i] != stringRepresentationOfNumber[j]) return false;
-
-        i += 1;
-        j += 1;
-    }
-
-    return true;
-}
-
-test "Part 1 snapshot test" {
-    const expected: u128 = 1227775554;
-    const input: []const u8 = "1-22,95-115,998-1012,1188511880-1188511890,222220-222224,1698522-1698528,446443-446449,38593856-38593862";
-
-    var arenaInstance: std.heap.ArenaAllocator = .init(std.testing.allocator);
-    defer arenaInstance.deinit();
-    const arenaAllocator = arenaInstance.allocator();
-
-    const groups = try getValidityAssessedIdRangesFromBuffer(arenaAllocator, input);
-    const result = getSumOfInvalidInRangePartOne(groups.items);
-
-    try std.testing.expectEqual(expected, result);
-}
-
-test "Part 2 snapshot test" {
-    const expected: u128 = 4174379265;
-    const input: []const u8 = "1-22,95-115,998-1012,1188511880-1188511890,222220-222224,1698522-1698528,446443-446449,38593856-38593862,565653-565659,824824821-824824827,2121212118-2121212124";
-
-    var arenaInstance: std.heap.ArenaAllocator = .init(std.testing.allocator);
-    defer arenaInstance.deinit();
-    const arenaAllocator = arenaInstance.allocator();
-
-    const groups = try getValidityAssessedIdRangesFromBuffer(arenaAllocator, input);
-    const result = getSumOfInvalidInRangePartTwo(groups.items);
-
-    try std.testing.expectEqual(expected, result);
-}
-
-test "odd lengths cannot be repeated strings" {
-    const expected = false;
-
-    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("1"));
-    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("111"));
-    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("11111"));
-    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("1111111"));
-    try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("111111111"));
-}
-
-test "sample input from prompty 95-115 - valid" {
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("95"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("96"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("97"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("98"));
-
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("100"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("101"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("102"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("103"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("104"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("105"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("106"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("107"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("108"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("109"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("110"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("111"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("112"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("113"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("114"));
-    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("115"));
-}
-
-test "sample input from prompty 95-115 - invalid" {
-    try std.testing.expectEqual(true, isRepeatedSequenceOfDigits("99"));
 }
