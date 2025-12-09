@@ -5,11 +5,19 @@ const IdRange = struct { start: u64, end: u64 };
 const IdGroup = struct {
     const Self = @This();
     examinedRange: IdRange,
-    invalidIds: []u64,
-    pub fn sumOfInvalid(self: Self) u128 {
+    invalidIdsPartOne: []u64,
+    invalidIdsPartTwo: []u64,
+    pub fn sumOfInvalidPartOne(self: Self) u128 {
+        return sumOfInvalid(self.invalidIdsPartOne);
+    }
+    pub fn sumOfInvalidPartTwo(self: Self) u128 {
+        return sumOfInvalid(self.invalidIdsPartTwo);
+    }
+
+    fn sumOfInvalid(numbers: []u64) u128 {
         var sum: u128 = 0;
-        for (self.invalidIds) |id| {
-            sum += id;
+        for (numbers) |i| {
+            sum += i;
         }
 
         return sum;
@@ -42,10 +50,19 @@ pub fn getInvalidIdsFromBuffer(allocator: std.mem.Allocator, buffer: []const u8)
     return try getInvalidIdsForRanges(allocator, idRanges);
 }
 
-pub fn getSumOfInvalidInRange(idRanges: []IdGroup) u128 {
+pub fn getSumOfInvalidInRangePartOne(idRanges: []IdGroup) u128 {
     var totalSum: u128 = 0;
     for (idRanges) |range| {
-        totalSum += range.sumOfInvalid();
+        totalSum += range.sumOfInvalidPartOne();
+    }
+
+    return totalSum;
+}
+
+pub fn getSumOfInvalidInRangePartTwo(idRanges: []IdGroup) u128 {
+    var totalSum: u128 = 0;
+    for (idRanges) |range| {
+        totalSum += range.sumOfInvalidPartOne();
     }
 
     return totalSum;
@@ -56,7 +73,7 @@ fn getInvalidIdsForRanges(allocator: std.mem.Allocator, idRanges: []IdRange) !st
 
     for (idRanges) |idRange| {
         const invalidIds = try getInvalidIdsForRange(allocator, idRange);
-        const idGroup: IdGroup = .{ .examinedRange = idRange, .invalidIds = invalidIds };
+        const idGroup: IdGroup = .{ .examinedRange = idRange, .invalidIdsPartOne = invalidIds, .invalidIdsPartTwo = undefined };
         try allIdGroups.append(allocator, idGroup);
     }
     return allIdGroups;
@@ -66,14 +83,14 @@ fn getInvalidIdsForRange(allocator: std.mem.Allocator, idRange: IdRange) ![]u64 
     var invalidIds: std.ArrayList(u64) = .empty;
     for (idRange.start..idRange.end) |id| {
         const stringRepresentation: []u8 = try std.fmt.allocPrint(allocator, "{d}", .{id});
-        if (!isValid(stringRepresentation)) {
+        if (isRepeatedSequenceOfDigits(stringRepresentation)) {
             try invalidIds.append(allocator, id);
         }
     }
 
     // The range specified above is inclusive lower, exclusive upper.
     const stringRepresentation: []u8 = try std.fmt.allocPrint(allocator, "{d}", .{idRange.end});
-    if (!isValid(stringRepresentation)) {
+    if (isRepeatedSequenceOfDigits(stringRepresentation)) {
         try invalidIds.append(allocator, idRange.end);
     }
 
@@ -150,10 +167,6 @@ fn getRanges(allocator: std.mem.Allocator, buffer: []const u8) ![]IdRange {
     return idRanges.items;
 }
 
-fn isValid(stringRepresentationOfNumber: []u8) bool {
-    return !isRepeatedSequenceOfDigits(stringRepresentationOfNumber);
-}
-
 fn isRepeatedSequenceOfDigits(stringRepresentationOfNumber: []const u8) bool {
     const s: u128 = @rem(stringRepresentationOfNumber.len, 2);
     if (s != 0) return false;
@@ -190,35 +203,35 @@ test "Part 1 snapshot test" {
     const arenaAllocator = arenaInstance.allocator();
 
     const groups = try getInvalidIdsFromBuffer(arenaAllocator, input);
-    const result = getSumOfInvalidInRange(groups.items);
+    const result = getSumOfInvalidInRangePartOne(groups.items);
 
     try std.testing.expectEqual(expected, result);
 }
 
 test "sample input from prompty 95-115 - valid" {
-    try std.testing.expectEqual(true, isValid("95"));
-    try std.testing.expectEqual(true, isValid("96"));
-    try std.testing.expectEqual(true, isValid("97"));
-    try std.testing.expectEqual(true, isValid("98"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("95"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("96"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("97"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("98"));
 
-    try std.testing.expectEqual(true, isValid("100"));
-    try std.testing.expectEqual(true, isValid("101"));
-    try std.testing.expectEqual(true, isValid("102"));
-    try std.testing.expectEqual(true, isValid("103"));
-    try std.testing.expectEqual(true, isValid("104"));
-    try std.testing.expectEqual(true, isValid("105"));
-    try std.testing.expectEqual(true, isValid("106"));
-    try std.testing.expectEqual(true, isValid("107"));
-    try std.testing.expectEqual(true, isValid("108"));
-    try std.testing.expectEqual(true, isValid("109"));
-    try std.testing.expectEqual(true, isValid("110"));
-    try std.testing.expectEqual(true, isValid("111"));
-    try std.testing.expectEqual(true, isValid("112"));
-    try std.testing.expectEqual(true, isValid("113"));
-    try std.testing.expectEqual(true, isValid("114"));
-    try std.testing.expectEqual(true, isValid("115"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("100"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("101"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("102"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("103"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("104"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("105"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("106"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("107"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("108"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("109"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("110"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("111"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("112"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("113"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("114"));
+    try std.testing.expectEqual(false, isRepeatedSequenceOfDigits("115"));
 }
 
 test "sample input from prompty 95-115 - invalid" {
-    try std.testing.expectEqual(false, isValid("99"));
+    try std.testing.expectEqual(true, isRepeatedSequenceOfDigits("99"));
 }
