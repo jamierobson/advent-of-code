@@ -11,9 +11,6 @@ pub fn main() !void {
     const arenaAllocator = arenaInstance.allocator();
 
     const result = try module.getInvalidIdsFromBuffer(arenaAllocator, idFile);
-    var totalSum: u128 = 0;
-    for (result.items) |range| {
-        totalSum += range.sumOfInvalid();
-    }
+    const totalSum = module.getSumOfInvalidInRange(result.items);
     std.debug.print("Total range: {any}", .{totalSum});
 }

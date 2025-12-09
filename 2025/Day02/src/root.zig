@@ -16,11 +16,6 @@ const IdGroup = struct {
     }
 };
 
-const Id = struct {
-  stringRepresentation: []u8,
-  value: u64
-};
-
 const IdRangeBufferReadResult = struct {
     const Self = @This();
     _allocator: std.mem.Allocator = undefined,
@@ -47,12 +42,21 @@ pub fn getInvalidIdsFromBuffer(allocator: std.mem.Allocator, buffer: []const u8)
     return try getInvalidIdsForRanges(allocator, idRanges);
 }
 
+pub fn getSumOfInvalidInRange(idRanges: []IdGroup) u128 {
+    var totalSum: u128 = 0;
+    for (idRanges) |range| {
+        totalSum += range.sumOfInvalid();
+    }
+
+    return totalSum;
+}
+
 fn getInvalidIdsForRanges(allocator: std.mem.Allocator, idRanges: []IdRange) !std.ArrayList(IdGroup) {
     var allIdGroups: std.ArrayList(IdGroup) = .empty;
 
     for (idRanges) |idRange| {
         const invalidIds = try getInvalidIdsForRange(allocator, idRange);
-        const idGroup: IdGroup = .{ .examinedRange = idRange, .invalidIds = invalidIds.items };
+        const idGroup: IdGroup = .{ .examinedRange = idRange, .invalidIds = invalidIds };
         try allIdGroups.append(allocator, idGroup);
     }
     return allIdGroups;
@@ -60,14 +64,17 @@ fn getInvalidIdsForRanges(allocator: std.mem.Allocator, idRanges: []IdRange) !st
 
 fn getInvalidIdsForRange(allocator: std.mem.Allocator, idRange: IdRange) ![]u64 {
     var invalidIds: std.ArrayList(u64) = .empty;
-    for (idRange.start..idRange.end) |id: u64| {
-        if (!isValid(id)) {
-            invalidIds.append(allocator, id);
+    for (idRange.start..idRange.end) |id| {
+        const stringRepresentation: []u8 = try std.fmt.allocPrint(allocator, "{d}", .{id});
+        if (!isValid(stringRepresentation)) {
+            try invalidIds.append(allocator, id);
         }
     }
 
-    if (!isValid(idRange.end)) {
-        invalidIds.append(allocator, idRange.end);
+    // The range specified above is inclusive lower, exclusive upper.
+    const stringRepresentation: []u8 = try std.fmt.allocPrint(allocator, "{d}", .{idRange.end});
+    if (!isValid(stringRepresentation)) {
+        try invalidIds.append(allocator, idRange.end);
     }
 
     return invalidIds.items;
@@ -99,19 +106,27 @@ fn getNextRangeFromBuffer(allocator: std.mem.Allocator, index: u32, buffer: []co
     return result;
 }
 
+fn printParseResult(allocator: std.mem.Allocator, id: u64, stringRepresenration: []u8) !void {
+    const displayable = try getScaledDisplayNumericalRepresentation(allocator, stringRepresenration);
+
+    std.debug.print("u64: {any}, []u8: {any} \n", .{ id, displayable });
+}
+
 fn printReadResult(result: IdRangeBufferReadResult) !void {
-    var fromNumber: std.ArrayList(u8) = .empty;
-    var toNumber: std.ArrayList(u8) = .empty;
-
-    for (result.firstIdFromBuffer.items) |char| {
-        try fromNumber.append(result._allocator, char - 48);
-    }
-
-    for (result.finalIdFromBuffer.items) |char| {
-        try toNumber.append(result._allocator, char - 48);
-    }
+    const fromNumber: std.ArrayList(u8) = try getScaledDisplayNumericalRepresentation(result._allocator, result.firstIdFromBuffer.items);
+    const toNumber: std.ArrayList(u8) = try getScaledDisplayNumericalRepresentation(result._allocator, result.finalIdFromBuffer.items);
 
     std.debug.print("read status: last read index {any} from {any} to {any} \n", .{ result.lastReadIndex, fromNumber, toNumber });
+}
+
+fn getScaledDisplayNumericalRepresentation(allocator: std.mem.Allocator, bytes: []u8) !std.ArrayList(u8) {
+    var displayRepresentation: std.ArrayList(u8) = .empty;
+
+    for (bytes) |char| {
+        try displayRepresentation.append(allocator, char - 48);
+    }
+
+    return displayRepresentation;
 }
 
 fn parseRange(bufferReadResult: IdRangeBufferReadResult) !IdRange {
@@ -126,7 +141,6 @@ fn getRanges(allocator: std.mem.Allocator, buffer: []const u8) ![]IdRange {
 
     while (index < buffer.len) {
         const nextRangeFromBuffer = try getNextRangeFromBuffer(allocator, index, buffer);
-        try printReadResult(nextRangeFromBuffer);
         const nextIdRange = try parseRange(nextRangeFromBuffer);
         try idRanges.append(allocator, nextIdRange);
 
@@ -136,7 +150,6 @@ fn getRanges(allocator: std.mem.Allocator, buffer: []const u8) ![]IdRange {
     return idRanges.items;
 }
 
-// fn isValid(stringRepresentationOfNumber: []const u8) bool {
 fn isValid(stringRepresentationOfNumber: []u8) bool {
     return !isRepeatedSequenceOfDigits(stringRepresentationOfNumber);
 }
@@ -166,6 +179,20 @@ test "odd lengths cannot be repeated strings" {
     try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("11111"));
     try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("1111111"));
     try std.testing.expectEqual(expected, isRepeatedSequenceOfDigits("111111111"));
+}
+
+test "Part 1 snapshot test" {
+    const expected: u128 = 1227775554;
+    const input: []const u8 = "1-22,95-115,998-1012,1188511880-1188511890,222220-222224,1698522-1698528,446443-446449,38593856-38593862";
+
+    var arenaInstance: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arenaInstance.deinit();
+    const arenaAllocator = arenaInstance.allocator();
+
+    const groups = try getInvalidIdsFromBuffer(arenaAllocator, input);
+    const result = getSumOfInvalidInRange(groups.items);
+
+    try std.testing.expectEqual(expected, result);
 }
 
 test "sample input from prompty 95-115 - valid" {
