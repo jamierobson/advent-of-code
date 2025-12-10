@@ -13,8 +13,9 @@ pub fn main() !void {
     const arenaAllocator = arenaInstance.allocator();
 
     const result = try module.getValidityAssessedIdRangesFromBuffer(arenaAllocator, idFile);
-    const totalSum = part1.getSumOfInvalidInRanges(result.items);
-    std.debug.print("Total range: {any}", .{totalSum});
+    const part1Sum = part1.getSumOfInvalidInRanges(result.items);
+    const part2Sum = part2.getSumOfInvalidInRanges(result.items);
+    std.debug.print("Total range: Part 1 = {any}, Part 2 = {any}", .{ part1Sum, part2Sum });
 }
 
 test "Part 1 snapshot test" {

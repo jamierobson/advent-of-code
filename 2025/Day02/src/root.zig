@@ -1,11 +1,26 @@
 const std = @import("std");
 const types = @import("types.zig");
 const part1 = @import("Part1.zig");
-const part2 = @import("Part1.zig");
+const part2 = @import("Part2.zig");
 
 pub fn getValidityAssessedIdRangesFromBuffer(allocator: std.mem.Allocator, buffer: []const u8) !std.ArrayList(types.IdGroup) {
     const idRanges = try getRanges(allocator, buffer);
     return try getInvalidIdsForRanges(allocator, idRanges);
+}
+
+pub fn getRanges(allocator: std.mem.Allocator, buffer: []const u8) ![]types.IdRange {
+    var idRanges: std.ArrayList(types.IdRange) = .empty;
+    var index: u32 = 0;
+
+    while (index < buffer.len) {
+        const nextRangeFromBuffer = try getNextRangeFromBuffer(allocator, index, buffer);
+        const nextIdRange = try parseRange(nextRangeFromBuffer);
+        try idRanges.append(allocator, nextIdRange);
+
+        index = nextRangeFromBuffer.lastReadIndex + 1;
+    }
+
+    return idRanges.items;
 }
 
 fn getInvalidIdsForRanges(allocator: std.mem.Allocator, idRanges: []types.IdRange) !std.ArrayList(types.IdGroup) {
@@ -18,7 +33,7 @@ fn getInvalidIdsForRanges(allocator: std.mem.Allocator, idRanges: []types.IdRang
     return allIdGroups;
 }
 
-fn setInvalidIds(allocator: std.mem.Allocator, idRange: types.IdRange) !types.IdGroup { // todo: This should be in the parts
+fn setInvalidIds(allocator: std.mem.Allocator, idRange: types.IdRange) !types.IdGroup { // todo: This shoud be in the parts
     var idGroup: types.IdGroup = .init(allocator, idRange);
 
     for (idGroup.range.start..idGroup.range.end) |id| {
@@ -28,7 +43,7 @@ fn setInvalidIds(allocator: std.mem.Allocator, idRange: types.IdRange) !types.Id
             try idGroup.appendInvalidPartTwo(id);
             // try part1.appendInvalidId(idGroup, id);
             // try part2.appendInvalidId(idGroup, id);
-        } else if (part2.isRepeatedSequenceOfDigits(stringRepresentation)) {
+        } else if (try part2.isRepeatedSequenceOfDigits(allocator, stringRepresentation)) {
             try idGroup.appendInvalidPartTwo(id);
         }
     }
@@ -39,7 +54,7 @@ fn setInvalidIds(allocator: std.mem.Allocator, idRange: types.IdRange) !types.Id
         try idGroup.appendInvalidPartTwo(idGroup.range.end);
         // try part1.appendInvalidId(idGroup, idGroup.range.end);
         // try part2.appendInvalidId(idGroup, idGroup.range.end);
-    } else if (part2.isRepeatedSequenceOfDigits(stringRepresentation)) {
+    } else if (try part2.isRepeatedSequenceOfDigits(allocator, stringRepresentation)) {
         try idGroup.appendInvalidPartTwo(idGroup.range.end);
     }
 
@@ -99,19 +114,4 @@ fn parseRange(bufferReadResult: types.IdRangeBufferReadResult) !types.IdRange {
     const fromId = try std.fmt.parseUnsigned(u64, bufferReadResult.firstIdFromBuffer.items, 10);
     const toId = try std.fmt.parseUnsigned(u64, bufferReadResult.finalIdFromBuffer.items, 10);
     return .{ .start = fromId, .end = toId };
-}
-
-fn getRanges(allocator: std.mem.Allocator, buffer: []const u8) ![]types.IdRange {
-    var idRanges: std.ArrayList(types.IdRange) = .empty;
-    var index: u32 = 0;
-
-    while (index < buffer.len) {
-        const nextRangeFromBuffer = try getNextRangeFromBuffer(allocator, index, buffer);
-        const nextIdRange = try parseRange(nextRangeFromBuffer);
-        try idRanges.append(allocator, nextIdRange);
-
-        index = nextRangeFromBuffer.lastReadIndex + 1;
-    }
-
-    return idRanges.items;
 }

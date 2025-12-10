@@ -50,7 +50,7 @@ fn isRepetedSequenceOfDigitsOfLength(allocator: std.mem.Allocator, stringReprese
             const thisCharacterIndex = partitionNumber * sequenceLength + indexWithinPartition;
             const compareToPreviousCharacterIndex = (partitionNumber - 1) * sequenceLength + indexWithinPartition;
 
-            std.debug.print("sequence length of {any}. compare index {any} ({any}) to index {any} ({any}) \n", .{ sequenceLength, thisCharacterIndex, stringRepresentationOfNumber[thisCharacterIndex] - 48, compareToPreviousCharacterIndex, stringRepresentationOfNumber[compareToPreviousCharacterIndex] - 48 });
+            // std.debug.print("sequence length of {any}. compare index {any} ({any}) to index {any} ({any}) \n", .{ sequenceLength, thisCharacterIndex, stringRepresentationOfNumber[thisCharacterIndex] - 48, compareToPreviousCharacterIndex, stringRepresentationOfNumber[compareToPreviousCharacterIndex] - 48 });
 
             if (stringRepresentationOfNumber[thisCharacterIndex] != stringRepresentationOfNumber[compareToPreviousCharacterIndex]) return false;
         }
