@@ -18,19 +18,29 @@ fn getInvalidIdsForRanges(allocator: std.mem.Allocator, idRanges: []types.IdRang
     return allIdGroups;
 }
 
-fn setInvalidIds(allocator: std.mem.Allocator, idRange: types.IdRange) !types.IdGroup {
+fn setInvalidIds(allocator: std.mem.Allocator, idRange: types.IdRange) !types.IdGroup { // todo: This should be in the parts
     var idGroup: types.IdGroup = .init(allocator, idRange);
 
     for (idGroup.range.start..idGroup.range.end) |id| {
         const stringRepresentation: []u8 = try std.fmt.allocPrint(allocator, "{d}", .{id});
         if (part1.isRepeatedSequenceOfDigits(stringRepresentation)) {
             try idGroup.appendInvalidPartOne(id);
+            try idGroup.appendInvalidPartTwo(id);
+            // try part1.appendInvalidId(idGroup, id);
+            // try part2.appendInvalidId(idGroup, id);
+        } else if (part2.isRepeatedSequenceOfDigits(stringRepresentation)) {
+            try idGroup.appendInvalidPartTwo(id);
         }
     }
     // The range specified above is inclusive lower, exclusive upper.
     const stringRepresentation: []u8 = try std.fmt.allocPrint(allocator, "{d}", .{idGroup.range.end});
     if (part1.isRepeatedSequenceOfDigits(stringRepresentation)) {
         try idGroup.appendInvalidPartOne(idGroup.range.end);
+        try idGroup.appendInvalidPartTwo(idGroup.range.end);
+        // try part1.appendInvalidId(idGroup, idGroup.range.end);
+        // try part2.appendInvalidId(idGroup, idGroup.range.end);
+    } else if (part2.isRepeatedSequenceOfDigits(stringRepresentation)) {
+        try idGroup.appendInvalidPartTwo(idGroup.range.end);
     }
 
     return idGroup;

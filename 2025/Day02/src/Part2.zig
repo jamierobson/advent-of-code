@@ -12,7 +12,7 @@ pub fn getSumOfInvalidInRanges(idGroups: []types.IdGroup) u128 {
 
 fn getSumOfInvalidInRange(idGroup: types.IdGroup) u128 {
     var sum: u128 = 0;
-    for (idGroup.invalidIdsPartTwo) |id| {
+    for (idGroup.invalidIdsPartTwo.items) |id| {
         sum += id;
     }
 

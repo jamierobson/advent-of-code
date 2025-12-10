@@ -40,9 +40,9 @@ pub fn isRepeatedSequenceOfDigits(stringRepresentationOfNumber: []const u8) bool
 // error: expected type '*<T>', found '*const <T>'
 // note: <T> = array_list.Aligned(u64,null)
 // note: cast discards const qualifier
-pub fn appendInvalidId(group: types.IdGroup, id: u64) !void {
-    try group.invalidIdsPartOne.append(group._allocator, id);
-}
+// pub fn appendInvalidId(group: types.IdGroup, id: u64) !void {
+//     try group.invalidIdsPartOne.append(group._allocator, id);
+// }
 
 test "Odd lengths cannot be repeated strings" {
     const expected = false;

@@ -16,6 +16,9 @@ pub const IdGroup = struct {
     pub fn appendInvalidPartOne(self: *Self, id: u64) !void {
         try self.invalidIdsPartOne.append(self._allocator, id);
     }
+    pub fn appendInvalidPartTwo(self: *Self, id: u64) !void {
+        try self.invalidIdsPartTwo.append(self._allocator, id);
+    }
 };
 
 pub const IdRangeBufferReadResult = struct {
