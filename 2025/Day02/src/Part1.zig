@@ -20,8 +20,8 @@ fn getSumOfInvalidInRange(idGroup: types.IdGroup) u128 {
 }
 
 pub fn isRepeatedSequenceOfDigits(stringRepresentationOfNumber: []const u8) bool {
-    const s: u128 = @rem(stringRepresentationOfNumber.len, 2);
-    if (s != 0) return false;
+    const remainder: u128 = @rem(stringRepresentationOfNumber.len, 2);
+    if (remainder != 0) return false;
 
     var i: usize = 0;
     var j: usize = stringRepresentationOfNumber.len / 2;
